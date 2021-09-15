@@ -12,7 +12,7 @@ print('set up server for', HOST, PORT)
 serversocket.listen(5)
 
 #accept any connections
-(clientsocket, address) = serversocket.accept()
+clientsocket, address = serversocket.accept()
 with clientsocket:
     print('Connection established with:', address)
     while True:
@@ -23,5 +23,7 @@ with clientsocket:
           break;
         else:
           #parse the content of the data
-          print(data)
+          txt = str(data)
+          print(txt)
           break;
+serversocket.close()
