@@ -1,8 +1,8 @@
 import socket
+import pickle
 
 HOST = 'localhost'
 PORT = 65432
-newname = "image%s.png"
 
 #Creating a server socket
 serversocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -10,52 +10,53 @@ serversocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 serversocket.bind((HOST, PORT))
 print('set up server for', HOST, PORT)
 #Listen for up to five connection requests
-serversocket.listen(5)
+serversocket.listen(1)
 
-#accept any connections
-clientsocket, address = serversocket.accept()
-with clientsocket:
-    print('Connection established with:', address)
-    while True:
-        data = clientsocket.recv(4096)
+#Accept any connections
+while True:
+    clientsocket, address = serversocket.accept()
+    with clientsocket:
+        print('Connection established with:', address)
+        filename = clientsocket.recv(4096).decode()
         print('Request Message received.')
-        if not data:
-            print('Server HTTP Response: HTTP 404 Not Found')
-            break
-        else:
-            #parse the content of the data
-            txt = str(data)
-            filetype = ''
-            print(txt)
-            
-            #receive message type and send receive confirmation
-            if txt.startswith('TYPE'):
-                tmp = txt.split()
-                filetype = tmp[1]
-                serversocket.send(b"RECV TYPE")
+        try:
+            fext = filename.split(".")
+            #if file is txt, content type is text/html
+            if(fext[1] == 'txt'):
+                data = open(filename, "r").read()
+                contenttype = "text/html"
+                filecontent = pickle.dumps(data)
+            #if file is image, content type  is image/jpg
+            elif(fext[1] == 'jpg'):
+                data = open(filename, "r").read()
+                contenttype = "image/jpg"
+                filecontent = pickle.dumps(data)
+            else:
+                print("Invalid File Type")
+                clientsocket.send("\HTTP/1.1 404 not found")
+                print("Server Response Sent.")
+                clientsocket.close()
+                print("Socket closed and request cannot be completed")
+                continue
 
-            #receive if it is EOT
-            elif txt.startswith('EOT'):
-                serversocket.close()
-                
-            #read the message    
-            elif data:
-                if filetype == "txt":
-                    print(data)
+        except IOError:
+            print("Unknown file, must send failed message")
+            resp = "\HTTP/1.1 404 not found"
+            clientsocket.send(resp.encode())
+            print("Server Response Sent.")
+            clientsocket.close()
+            print("Socket closed and request cannot be completed.")
+            continue
 
-                elif filetype == "png":
-                    recvimg = open(newname, 'wb')
-                    data = serversocket.recv(4096000)
-                    if not data:
-                        recvimg.close()
-                        print("404?")
-                        break
-                    recvimg.write(data)
-                    recvimg.close()
-
-                    print("Message received.")
-                    serversocket.send(b"RECV MSG")
-                    serversocket.close()
-        break
-
-serversocket.close()
+    resp = "HTTP/1.1 200 OK"
+    clientsocket.send(resp.encode())
+    print("HTTP Response Sent.")
+    #Send Content Type Response
+    clientsocket.send(contenttype.encode())
+    print("Content Type Response Sent.")
+    #Send File Content Response
+    clientsocket.send(filecontent)
+    print("File Content Response Sent.")
+    #Close Socket
+    clientsocket.close()
+    print("Socket closed and request completed.")
