@@ -1,40 +1,57 @@
 import socket
+import sys
+import time
+import pickle
 
 HOST = 'localhost'
 PORT = 65432
-filename = 'test.txt'
+timeout = 5
 
-s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-s.connect((HOST, PORT))
+filename = 'text.txt'
+#Create a client socket to send requests and receives message data
+clientsocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+#set the timeout
+clientsocket.settimeout(timeout)
+try:
+    clientsocket.connect((HOST, PORT))
+except socket.error:
+    print("Connection: Not Okay")
+    sys.exit(1)
 print("Connection: OK")
-fext = filename.split(".")
-print(fext)
 
-with open(filename, 'rb') as f:
-    #send the type of file being sent to the server
-    if fext[1] == "txt":
-        s.send(b'TYPE txt')
-    elif fext[1] == "jpg":    
-        s.send(b'TYPE jpg')
-    elif fext[1] == "mp4":
-        s.send(b'TPYE mp4')
-    elif fext[1] == "mp3":
-        s.send(b'TPYE mp3')
-    else:
-        #Error?
-        print('File type not supported')
+#Send file request message
+clientsocket.send(filename.encode())
+print("Request Message Sent")
 
-    #Attempt to get confirmation from server that they received the file type and proceed to send the message
-    if s.recv(4096) == 'RECV TYPE':
-        print("Type confirmation received")   
-        content = f.read()     
-        s.send(content)
-        print(content)
-        print("Request message sent.")
-        
-        #When received message confirmation from server, send the EOT flag before closing the socket
-        if s.recv(4096) == "RECV MSG":
-            s.send("EOT")
-            
-s.close()
-f.close()
+#Receive server response and content type
+response = clientsocket.recv(4096).decode()
+print("Server HTTP Response:", response)
+contenttype = clientsocket.recv(4096).decode()
+print("Content-Type:", contenttype)
+
+#Begin receiving the data
+datarecv = []
+starttime = time.time()
+numpack = 0
+while True:
+    packet = clientsocket.recv(1024)
+    if not packet:
+        break
+    datarecv.append(packet)
+    numpack += 1
+
+filecontent = pickle.loads(b"".join(datarecv))
+
+print("Time elapsed:", (time.time() - starttime))
+print("Number of packets:", numpack)
+
+if(contenttype == "text/html"):
+    print(filecontent)
+elif(contenttype == "image/jpg"):
+    filecontent.show()
+
+clientsocket.close()
+print("Socket Closed")
+sys.exit(0)
+
+clientsocket.close()
