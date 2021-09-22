@@ -1,7 +1,7 @@
 import socket
 import pickle
 
-HOST = 'localhost'
+HOST = '127.0.0.2'
 PORT = 65432
 
 #Creating a server socket
@@ -17,15 +17,21 @@ while True:
     clientsocket, address = serversocket.accept()
     with clientsocket:
         print('Connection established with:', address)
-        filename = clientsocket.recv(4096).decode()
+        response = clientsocket.recv(1024).decode()
+        temp = response.split("\n")
+        filename = temp[2]
+
         print('Request Message received.')
         try:
+            print(filename)
             fext = filename.split(".")
+
             #if file is txt, content type is text/html
             if(fext[1] == 'txt'):
                 data = open(filename, "r").read()
                 contenttype = "text/html"
                 filecontent = pickle.dumps(data)
+
             #if file is image, content type  is image/jpg
             elif(fext[1] == 'jpg'):
                 data = open(filename, "r").read()
@@ -33,7 +39,7 @@ while True:
                 filecontent = pickle.dumps(data)
             else:
                 print("Invalid File Type")
-                clientsocket.send("\HTTP/1.1 404 not found")
+                clientsocket.sendall("\HTTP/1.1 404 not found")
                 print("Server Response Sent.")
                 clientsocket.close()
                 print("Socket closed and request cannot be completed")
@@ -42,20 +48,22 @@ while True:
         except IOError:
             print("Unknown file, must send failed message")
             resp = "\HTTP/1.1 404 not found"
-            clientsocket.send(resp.encode())
+            clientsocket.sendall(resp.encode())
             print("Server Response Sent.")
             clientsocket.close()
             print("Socket closed and request cannot be completed.")
             continue
 
     resp = "HTTP/1.1 200 OK"
-    clientsocket.send(resp.encode())
+    clientsocket.sendall(resp.encode()) #Error Operation was attempted on something that is not a socket
     print("HTTP Response Sent.")
+
     #Send Content Type Response
-    clientsocket.send(contenttype.encode())
+    clientsocket.sendall(contenttype.encode())
     print("Content Type Response Sent.")
+    
     #Send File Content Response
-    clientsocket.send(filecontent)
+    clientsocket.sendall(filecontent)
     print("File Content Response Sent.")
     #Close Socket
     clientsocket.close()
