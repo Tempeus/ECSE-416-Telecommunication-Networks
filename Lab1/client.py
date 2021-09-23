@@ -44,8 +44,8 @@ print("Request Message Sent")
 #Receive server response and content type
 response = clientsocket.recv(1024)
 print("Server HTTP Response:", response.decode())
-contenttype = clientsocket.recv(1024).decode("utf-8")
-print("Content-Type:", contenttype)
+contenttype = clientsocket.recv(1024)
+print("Content-Type:", contenttype.decode())
 
 #Begin receiving the data
 datarecv = []
@@ -71,3 +71,5 @@ elif(contenttype == "image/jpg"):
 clientsocket.close()
 print("Socket Closed")
 sys.exit(0)
+
+#UTF-8 codec cant decode byte 0x80 in position 9: invalid start byte    
